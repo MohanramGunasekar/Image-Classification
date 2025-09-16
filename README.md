@@ -6,7 +6,7 @@ To Develop a convolutional deep neural network for image classification and to v
 
 ## Problem Statement and Dataset
 
-Include the Problem Statement and Dataset.
+Classifying the MNIST Fashion dataset which has 70000 images of 10 classes of clothing using Convolutional Neural Network enabling it to identify newly prompted image.
 
 ## Neural Network Model
 
@@ -38,56 +38,60 @@ Save the trained model, visualize predictions, and integrate it into an applicat
 ### Name:Mohanram Gunasekar
 ### Register Number:212223240095
 ```python
-class CNNClassifier (nn.Module):
-  def __init__(self):
-    super (CNNClassifier, self).__init__()
-    self.conv1 = nn.Conv2d(in_channels=1, out_channels=32, kernel_size=3, padding=1)
-    self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1)
-    self.conv3 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1)
-    self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-    self.fc1 = nn.Linear(128 * 3 * 3, 128)
-    self.fc2 = nn.Linear (128, 64)
-    self.fc3 = nn.Linear (64, 10)
-  def forward(self, x):
-    x = self.pool(torch.relu(self.conv1(x)))
-    x = self.pool(torch.relu (self.conv2(x)))
-    x = self.pool(torch.relu(self.conv3(x)))
-    x = x.view(x.size(0), -1) # Flatten the image
-    x = torch.relu(self.fc1(x))
-    x = torch.relu(self.fc2(x))
-    x = self.fc3(x)
-    return x
+class CNNClassifier(nn.Module):
+    def __init__(self):
+        super(CNNClassifier, self).__init__()
+        # 1 input channel (grayscale), 2 convolution blocks + fully connected layers
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)  # (32,28,28)
+        self.pool  = nn.MaxPool2d(2, 2)                          # halves size
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1) # (64,14,14)
+
+        # After 2 conv + pool layers: feature map size = 64 x 7 x 7
+        self.fc1   = nn.Linear(64 * 7 * 7, 128)
+        self.fc2   = nn.Linear(128, 10)  # 10 classes in Fashion-MNIST
+
+    def forward(self, x):
+        x = torch.relu(self.conv1(x))
+        x = self.pool(x)
+        x = torch.relu(self.conv2(x))
+        x = self.pool(x)
+        x = x.view(x.size(0), -1)      # flatten
+        x = torch.relu(self.fc1(x))
+        x = self.fc2(x)                # CrossEntropyLoss will apply Softmax
+        return x
 
 ```
 
 ```python
-# Initialize the Model, Loss Function, and Optimizer
+from torchsummary import summary
+
+# Initialize model
 model = CNNClassifier()
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-```
-
-```python
-# Train the Model
-def train_model(model, train_loader, num_epochs=3):
-    # Move model to GPU if available, inside the function
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# Move model to GPU if available
+if torch.cuda.is_available():
+    device = torch.device("cuda")
     model.to(device)
 
+# Print model summary
+print('Name: Mohanram Gunasekar')
+print('Register Number: 212223240095')
+summary(model, input_size=(1, 28, 28))
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+```
+
+```python
+def train_model(model, train_loader, num_epochs=3):
+    model.train()
     for epoch in range(num_epochs):
         running_loss = 0.0
         for images, labels in train_loader:
-            # Move images and labels to the same device as the model
-            images = images.to(device)
-            labels = labels.to(device)
+            images, labels = images.to(device), labels.to(device)
 
-            # Forward pass
+            optimizer.zero_grad()
             outputs = model(images)
             loss = criterion(outputs, labels)
-
-            # Backward and optimize
-            optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
